@@ -21,7 +21,6 @@ openAIClient = OpenAI(
   # project='proj_OB9WRw99Ff0RVgtgFQuuhr1W',
 )
 
-#todo: retain message history on a user level
 #todo: do not exceed token limit
 #todo: persist context and retrieve later
 chat_messages = {}
@@ -34,6 +33,7 @@ def forward_user_message(author: discord.User, user_message: str) -> ChatComplet
         messages=chat_messages[author.id]
     )
     chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
+    print(">>> {0}".format(chat_messages))
     return completion_response
 
 @discordClient.event
