@@ -12,14 +12,14 @@ openAIClient = OpenAI(
   # organization='org-gMHRXBUGG89jZIWwvFwO9vR8',
   # project='proj_OB9WRw99Ff0RVgtgFQuuhr1W',
 )
-
+chat_messages = []
 def forward_user_message(user_message: str) -> ChatCompletion:
+    chat_messages.append({"role": "user", "content": user_message})
     completion_response = openAIClient.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": user_message}
-        ]
+        messages=chat_messages
     )
+    chat_messages.append({"role": "assistant", "content": completion_response.choices[0].message.content})
     return completion_response
 
 @discordClient.event
@@ -37,8 +37,5 @@ async def on_message(message):
             completion_response = forward_user_message(message.content)
             await message.channel.send(completion_response.choices[0].message.content)
             return
-
-
-
 
 discordClient.run(os.getenv('DISCORD_BOT_TOKEN'))
