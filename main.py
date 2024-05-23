@@ -20,14 +20,20 @@ openAIClient = OpenAI(
   # organization='org-gMHRXBUGG89jZIWwvFwO9vR8',
   # project='proj_OB9WRw99Ff0RVgtgFQuuhr1W',
 )
-chat_messages = []
-def forward_user_message(user_message: str) -> ChatCompletion:
-    chat_messages.append({ROLE: USER, CONTENT: user_message})
+
+#todo: retain message history on a user level
+#todo: do not exceed token limit
+#todo: persist context and retrieve later
+chat_messages = {}
+def forward_user_message(author: discord.User, user_message: str) -> ChatCompletion:
+    if author.id not in chat_messages:
+        chat_messages[author.id] = []
+    chat_messages[author.id].append({ROLE: USER, CONTENT: user_message})
     completion_response = openAIClient.chat.completions.create(
         model=GPT_MODEL,
-        messages=chat_messages
+        messages=chat_messages[author.id]
     )
-    chat_messages.append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
+    chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
     return completion_response
 
 @discordClient.event
@@ -42,7 +48,7 @@ async def on_message(message):
         if message.author == discordClient.user:
             return
         else:
-            completion_response = forward_user_message(message.content)
+            completion_response = forward_user_message(message.author, message.content)
             await message.channel.send(completion_response.choices[0].message.content)
             return
 
