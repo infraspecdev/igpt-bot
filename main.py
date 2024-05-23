@@ -2,6 +2,7 @@ import discord
 import os
 from openai import OpenAI
 from openai.types.chat.chat_completion import ChatCompletion
+from loguru import logger
 
 ROLE = "role"
 USER = "user"
@@ -33,12 +34,13 @@ def forward_user_message(author: discord.User, user_message: str) -> ChatComplet
         messages=chat_messages[author.id]
     )
     chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
-    print(">>> {0}".format(chat_messages))
+    logger.debug(chat_messages)
+    logger.info(completion_response)
     return completion_response
 
 @discordClient.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(discordClient))
+    logger.info('We have logged in as {0.user}'.format(discordClient))
 
 @discordClient.event
 async def on_message(message):
