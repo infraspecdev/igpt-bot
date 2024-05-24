@@ -16,59 +16,54 @@ DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 MAX_TOKEN_LENGTH = 4096
 
+#todo: extract discord client as a separate class, wrapper on top of discord client type
 def create_discord_client() -> discord.Client:
     intents = discord.Intents.default()
     intents.message_content = True
     client = discord.Client(intents=intents)
     return client
 
+#todo: extract openAI client as a separate class, wrapper on top of openAI type
 def create_openAI_client() -> OpenAI:
     client = OpenAI()
     return client
-
-
-    # encoding = tiktoken.encoding_for_model(GPT_MODEL)
-
-    #todo: do not exceed token limit
-    #todo: persist context and retrieve later
-    # def summarize_text(text: str)-> str:
-
-    #     return ""
-
-    # def count_tokens(text: str)-> int:
-    #     count = len(encoding.encode(chat_messages[author.id]))
-    #     return count
-
 
 class Bot:
     def __init__(self, discord_client, openAI_client):
         self.discord_client = discord_client
         self.openAI_client = openAI_client
         self.chat_messages = {}
-        print(">>> Inititalised here")
-        print(">>> {0}".format(self.discord_client))
-        print(">>> {0}".format(self.openAI_client))
 
-    def forward_user_message(self, author: discord.User, user_message: str) -> ChatCompletion:
-        # user_message_tokens = count_tokens(user_message)
-        # if user_message_tokens > MAX_TOKEN_LENGTH :
-        #     print("exceeded token limits; please shorten your query text")
+    def is_over_token_limit(self, text: str) -> bool:
+        encoding = tiktoken.encoding_for_model(GPT_MODEL)
+        count = len(encoding.encode(text))
+        return count > MAX_TOKEN_LENGTH
 
+    def forward_user_message(self, user_message: discord.Message) -> str:
+        if self.is_over_token_limit(user_message.content):
+            #todo: display warning message
+            return "Your text has exceeded the request token limit; Please provide a shorter text"
+            return
+
+        author = user_message.author
         if author.id not in self.chat_messages:
             self.chat_messages[author.id] = []
 
-        self.chat_messages[author.id].append({ROLE: USER, CONTENT: user_message})
+        self.chat_messages[author.id].append({ROLE: USER, CONTENT: user_message.content})
         completion_response = self.openAI_client.chat.completions.create(
             model=GPT_MODEL,
             messages=self.chat_messages[author.id]
         )
-        self.chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
+        assistant_message = completion_response.choices[0].message.content
+        if self.is_over_token_limit(assistant_message):
+            #summarise and append summarised text
+            summarised_text = "summarised_text"
+            self.chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: summarised_text})
+        else:
+            self.chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
+
         logger.debug(self.chat_messages)
-        logger.info(completion_response)
-        return completion_response
-
-    # def register_events(self):
-
+        return completion_response.choices[0].message.content
 
     def run(self):
         @self.discord_client.event
@@ -83,8 +78,8 @@ class Bot:
                 if message.author == self.discord_client.user:
                     return
                 else:
-                    completion_response = self.forward_user_message(message.author, message.content)
-                    await message.channel.send(completion_response.choices[0].message.content)
+                    response = self.forward_user_message(message)
+                    await message.channel.send(response) # handle for discord's character limit (2000 chars)
                     return
 
         self.discord_client.run(DISCORD_BOT_TOKEN)
