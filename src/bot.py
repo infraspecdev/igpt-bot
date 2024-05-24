@@ -15,6 +15,7 @@ GPT_MODEL = "gpt-3.5-turbo"
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 MAX_TOKEN_LENGTH = 4096
+MAX_DISCORD_MESSAGE_LENGTH = 2000
 
 #todo: extract discord client as a separate class, wrapper on top of discord client type
 def create_discord_client() -> discord.Client:
@@ -39,31 +40,46 @@ class Bot:
         count = len(encoding.encode(text))
         return count > MAX_TOKEN_LENGTH
 
-    def forward_user_message(self, user_message: discord.Message) -> str:
-        if self.is_over_token_limit(user_message.content):
-            #todo: display warning message
-            return "Your text has exceeded the request token limit; Please provide a shorter text"
-            return
+    def is_over_message_length_limit(self, text: str) -> bool:
+        return len(text) > MAX_DISCORD_MESSAGE_LENGTH
 
-        author = user_message.author
-        if author.id not in self.chat_messages:
-            self.chat_messages[author.id] = []
+    def add_to_chat_context(self, context, role: str, message: str):
+        context.append({ROLE: role, CONTENT: message})
 
-        self.chat_messages[author.id].append({ROLE: USER, CONTENT: user_message.content})
+    def summarise_chat_context(self, context):
+        #todo:
+        return
+
+    def complete_chat(self, context) -> str:
         completion_response = self.openAI_client.chat.completions.create(
             model=GPT_MODEL,
-            messages=self.chat_messages[author.id]
+            messages=context
         )
         assistant_message = completion_response.choices[0].message.content
         if self.is_over_token_limit(assistant_message):
             #summarise and append summarised text
             summarised_text = "summarised_text"
-            self.chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: summarised_text})
+            return summarised_text
         else:
-            self.chat_messages[author.id].append({ROLE: ASSISTANT, CONTENT: completion_response.choices[0].message.content})
+            return assistant_message
 
+    def forward_user_message(self, user_message: discord.Message) -> str:
+        if self.is_over_token_limit(user_message.content):
+            #todo: display warning message
+            return "Your text has exceeded the request token limit; Please provide a shorter text"
+
+        author = user_message.author
+        if author.id not in self.chat_messages:
+            self.chat_messages[author.id] = []
+
+        self.add_to_chat_context(self.chat_messages[author.id], USER, user_message.content)
+        response = self.complete_chat(self.chat_messages[author.id])
+        if self.is_over_message_length_limit(response):
+            return "Response exceeds discord's character limit; Please request shorter text"
+        self.add_to_chat_context(self.chat_messages[author.id], ASSISTANT, response)
         logger.debug(self.chat_messages)
-        return completion_response.choices[0].message.content
+        return response
+
 
     def run(self):
         @self.discord_client.event
