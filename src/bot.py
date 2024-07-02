@@ -65,7 +65,6 @@ class Bot:
 
     def forward_user_message(self, user_message: discord.Message) -> str:
         if self.is_over_token_limit(user_message.content):
-            #todo: display warning message
             return "Your text has exceeded the request token limit; Please provide a shorter text"
 
         author = user_message.author
