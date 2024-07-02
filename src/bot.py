@@ -4,6 +4,9 @@ from openai import OpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 from loguru import logger
 import tiktoken
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ROLE = "role"
 USER = "user"
