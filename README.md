@@ -3,7 +3,7 @@ igpt-bot is a ChatGPT bot for discord. It makes ChatGPT available over Discord D
 ## Prerequisites
 
 1. Python 3
-2. Conda - Conda is a package manager for python.
+2. Conda (the instructions assume you use conda, but venv works too. activate env and download deps accordingly)
 
 ## Prep
 
